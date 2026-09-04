@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:soapui-project activeEnvironment="Default" name="Sample HttpBin Project" resourceRoot="" soapui-version="5.7.0" abortOnError="false" runType="SEQUENTIAL" xmlns:con="http://eviware.com/soapui/config">
+  <con:settings/>
+  <con:properties>
+    <con:property>
+      <con:name>BaseUrl</con:name>
+      <con:value>https://httpbin.org</con:value>
+    </con:property>
+  </con:properties>
+  <con:testSuite name="HttpBin TestSuite">
+    <con:settings/>
+    <con:testCase failOnError="false" failTestCaseOnErrors="false" keepSession="false" maxResults="0" name="Get and Post" searchProperties="true">
+      <con:settings/>
+      <con:testStep type="restrequest" name="GET status 200">
+        <con:settings/>
+        <con:config service="" resourcePath="/status/200" methodName="" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <con:restRequest name="GET status 200" method="GET" mediaType="application/json">
+            <con:settings/>
+            <con:endpoint>${BaseUrl}</con:endpoint>
+            <con:request/>
+            <con:parameters/>
+            <con:assertion type="Valid HTTP Status Codes" id="a1">
+              <con:configuration>
+                <codes>200</codes>
+              </con:configuration>
+            </con:assertion>
+            <con:assertion type="Response SLA" id="a2">
+              <con:configuration>
+                <SLA>5000</SLA>
+              </con:configuration>
+            </con:assertion>
+          </con:restRequest>
+        </con:config>
+      </con:testStep>
+      <con:testStep type="restrequest" name="POST json echo">
+        <con:settings/>
+        <con:config service="" resourcePath="/post" methodName="" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <con:restRequest name="POST json echo" method="POST" mediaType="application/json">
+            <con:settings/>
+            <con:endpoint>${BaseUrl}</con:endpoint>
+            <con:request>{"message": "bonjour"}</con:request>
+            <con:parameters/>
+            <con:assertion type="Valid HTTP Status Codes" id="a3">
+              <con:configuration>
+                <codes>200</codes>
+              </con:configuration>
+            </con:assertion>
+            <con:assertion type="Simple Contains" id="a4">
+              <con:configuration>
+                <token>bonjour</token>
+                <ignoreCase>false</ignoreCase>
+                <useRegEx>false</useRegEx>
+              </con:configuration>
+            </con:assertion>
+            <con:assertion type="JsonPath Match" id="a5">
+              <con:configuration>
+                <path>$.json.message</path>
+                <content>bonjour</content>
+              </con:configuration>
+            </con:assertion>
+            <con:assertion type="Simple Contains" id="a6">
+              <con:configuration>
+                <token>ceci-ne-sera-pas-trouve</token>
+                <ignoreCase>false</ignoreCase>
+                <useRegEx>false</useRegEx>
+              </con:configuration>
+            </con:assertion>
+          </con:restRequest>
+        </con:config>
+      </con:testStep>
+      <con:testStep type="restrequest" name="GET status 500 attendu (echouera)">
+        <con:settings/>
+        <con:config service="" resourcePath="/status/500" methodName="" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <con:restRequest name="GET status 500" method="GET" mediaType="application/json">
+            <con:settings/>
+            <con:endpoint>${BaseUrl}</con:endpoint>
+            <con:request/>
+            <con:parameters/>
+            <con:assertion type="Valid HTTP Status Codes" id="a7">
+              <con:configuration>
+                <codes>200</codes>
+              </con:configuration>
+            </con:assertion>
+          </con:restRequest>
+        </con:config>
+      </con:testStep>
+      <con:properties/>
+    </con:testCase>
+    <con:properties/>
+  </con:testSuite>
+  <con:properties/>
+</con:soapui-project>

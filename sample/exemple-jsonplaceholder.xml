@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:soapui-project activeEnvironment="Default" name="Exemple JSONPlaceholder" resourceRoot="" soapui-version="5.7.0" abortOnError="false" runType="SEQUENTIAL" xmlns:con="http://eviware.com/soapui/config">
+  <con:settings/>
+  <!-- Propriete de projet : change juste cette valeur pour repointer TOUS les
+       test steps vers une autre API (staging/prod, autre host...). -->
+  <con:properties>
+    <con:property>
+      <con:name>BaseUrl</con:name>
+      <con:value>https://jsonplaceholder.typicode.com</con:value>
+    </con:property>
+  </con:properties>
+  <con:testSuite name="JSONPlaceholder TestSuite">
+    <con:settings/>
+    <con:testCase failOnError="false" failTestCaseOnErrors="false" keepSession="false" maxResults="0" name="Posts CRUD" searchProperties="true">
+      <con:settings/>
+
+      <con:testStep type="restrequest" name="GET un post existant">
+        <con:settings/>
+        <con:config service="" resourcePath="/posts/1" methodName="" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <con:restRequest name="GET un post existant" method="GET" mediaType="application/json">
+            <con:settings/>
+            <con:endpoint>${BaseUrl}</con:endpoint>
+            <con:request/>
+            <con:parameters/>
+            <con:assertion type="Valid HTTP Status Codes" id="p1">
+              <con:configuration>
+                <codes>200</codes>
+              </con:configuration>
+            </con:assertion>
+            <con:assertion type="JsonPath Match" id="p2">
+              <con:configuration>
+                <path>$.id</path>
+                <content>1</content>
+              </con:configuration>
+            </con:assertion>
+            <con:assertion type="Simple Contains" id="p3">
+              <con:configuration>
+                <token>userId</token>
+                <ignoreCase>false</ignoreCase>
+                <useRegEx>false</useRegEx>
+              </con:configuration>
+            </con:assertion>
+            <con:assertion type="Response SLA" id="p4">
+              <con:configuration>
+                <SLA>3000</SLA>
+              </con:configuration>
+            </con:assertion>
+          </con:restRequest>
+        </con:config>
+      </con:testStep>
+
+      <con:testStep type="restrequest" name="POST creation d'un post">
+        <con:settings/>
+        <con:config service="" resourcePath="/posts" methodName="" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <con:restRequest name="POST creation d'un post" method="POST" mediaType="application/json">
+            <con:settings/>
+            <con:endpoint>${BaseUrl}</con:endpoint>
+            <con:request>{"title": "Bonjour", "body": "Contenu du post", "userId": 1}</con:request>
+            <con:parameters/>
+            <con:assertion type="Valid HTTP Status Codes" id="p5">
+              <con:configuration>
+                <codes>201</codes>
+              </con:configuration>
+            </con:assertion>
+            <con:assertion type="JsonPath Match" id="p6">
+              <con:configuration>
+                <path>$.title</path>
+                <content>Bonjour</content>
+              </con:configuration>
+            </con:assertion>
+          </con:restRequest>
+        </con:config>
+      </con:testStep>
+
+      <con:testStep type="restrequest" name="GET post inexistant (404 attendu)">
+        <con:settings/>
+        <con:config service="" resourcePath="/posts/999999" methodName="" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <con:restRequest name="GET post inexistant" method="GET" mediaType="application/json">
+            <con:settings/>
+            <con:endpoint>${BaseUrl}</con:endpoint>
+            <con:request/>
+            <con:parameters/>
+            <con:assertion type="Valid HTTP Status Codes" id="p7">
+              <con:configuration>
+                <codes>404</codes>
+              </con:configuration>
+            </con:assertion>
+          </con:restRequest>
+        </con:config>
+      </con:testStep>
+
+      <con:properties/>
+    </con:testCase>
+    <con:properties/>
+  </con:testSuite>
+  <con:properties/>
+</con:soapui-project>

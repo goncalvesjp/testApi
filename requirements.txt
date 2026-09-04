@@ -1,0 +1,4 @@
+PyQt6>=6.6
+requests>=2.31
+lxml>=5.0
+jsonpath-ng>=1.6
