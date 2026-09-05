@@ -300,14 +300,20 @@ def parse_project(path: str) -> Project:
                 _parse_test_step(step_elem, interface_methods, interface_endpoints)
                 for step_elem in _findall(tc_elem, "testStep")
             ]
-            test_cases.append(
-                TestCase(
-                    name=tc_elem.get("name", ""),
-                    test_steps=steps,
-                    disabled=tc_elem.get("disabled") == "true",
-                )
+            case = TestCase(
+                name=tc_elem.get("name", ""),
+                test_steps=steps,
+                disabled=tc_elem.get("disabled") == "true",
             )
-        test_suites.append(TestSuite(name=ts_elem.get("name", ""), test_cases=test_cases))
+            # Reference vers l'element XML source, utilisee par
+            # serializer.duplicate_test_step() pour inserer un nouveau
+            # <testStep> au bon endroit.
+            case._xml_elem = tc_elem
+            test_cases.append(case)
+        suite = TestSuite(name=ts_elem.get("name", ""), test_cases=test_cases)
+        # Idem, pour serializer.duplicate_test_case().
+        suite._xml_elem = ts_elem
+        test_suites.append(suite)
 
     project = Project(name=project_name, test_suites=test_suites, properties=properties, source_path=path)
     # Conserves pour permettre a serializer.save_project() de reecrire le

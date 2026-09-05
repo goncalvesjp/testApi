@@ -69,3 +69,42 @@ def test_apply_step_edits_updates_model_and_tree(qtbot):
     assert step_item.text(0) == "GET status 200 (modifie) (desactive)"
     # step desactive => is_executable est False, la colonne info retombe sur le type
     assert step_item.text(2) == "restrequest"
+
+
+def test_duplicate_step_adds_independent_copy_and_selects_it(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.project = parse_project(SAMPLE)
+    window._populate_tree()
+
+    window._duplicate_step((0, 0, 0))
+
+    case = window.project.test_suites[0].test_cases[0]
+    assert len(case.test_steps) == 4
+    assert case.test_steps[-1].name == "GET status 200 (copie)"
+    assert case.test_steps[-1] is not case.test_steps[0]
+
+    new_coords = (0, 0, 3)
+    assert window.tree.currentItem() is window._step_items[new_coords]
+    assert window._current_edit_coords == new_coords
+    assert window.edit_name.text() == "GET status 200 (copie)"
+
+
+def test_duplicate_case_adds_independent_copy_with_cloned_steps(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.project = parse_project(SAMPLE)
+    window._populate_tree()
+
+    window._duplicate_case((0, 0))
+
+    suite = window.project.test_suites[0]
+    assert len(suite.test_cases) == 2
+    duplicate = suite.test_cases[-1]
+    assert duplicate.name == "Get and Post (copie)"
+    assert len(duplicate.test_steps) == 3
+    assert duplicate.test_steps[0] is not suite.test_cases[0].test_steps[0]
+
+    assert window.tree.currentItem() is window._case_items[(0, 1)]

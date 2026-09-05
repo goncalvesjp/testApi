@@ -48,7 +48,12 @@ make run
    cliquer **Appliquer les modifications à cette étape** pour les répercuter
    en mémoire (visible immédiatement dans l'arbre et lors du prochain
    lancement des tests)
-6. **💾 Enregistrer le projet** — écrit toutes les modifications appliquées
+6. **Clic droit sur un test step ou un test case** — **Dupliquer** : crée une
+   copie indépendante (nom suffixé `(copie)`, `(copie 2)`...) ajoutée à la fin
+   du test case (ou de la suite pour un test case), sélectionnée
+   automatiquement pour être renommée/modifiée via l'onglet **Modifier**.
+   L'original n'est jamais impacté.
+7. **💾 Enregistrer le projet** — écrit toutes les modifications appliquées
    dans le fichier `soapui-project.xml` source (confirmation demandée avant
    d'écraser le fichier). Seuls les éléments touchés sont modifiés dans le
    XML ; tout le reste (interfaces, steps non supportés, réglages projet...)

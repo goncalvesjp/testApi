@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -249,6 +250,8 @@ class MainWindow(QMainWindow):
         self.tree.setHeaderLabels(["Nom", "Statut", "Info"])
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.tree.currentItemChanged.connect(self._on_selection_changed)
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._show_tree_context_menu)
         splitter.addWidget(self.tree)
 
         right = QWidget()
@@ -398,6 +401,7 @@ class MainWindow(QMainWindow):
             for ci, case in enumerate(suite.test_cases):
                 label = case.name + (" (desactive)" if case.disabled else "")
                 case_item = QTreeWidgetItem([label, "", f"{len(case.test_steps)} step(s)"])
+                case_item.setData(0, Qt.ItemDataRole.UserRole, (si, ci))
                 suite_item.addChild(case_item)
                 self._case_items[(si, ci)] = case_item
 
@@ -413,6 +417,56 @@ class MainWindow(QMainWindow):
                         self._runnable_coords.append((si, ci, sti))
 
         self.tree.expandAll()
+
+    # ---------- Duplication ----------
+    def _show_tree_context_menu(self, pos):
+        if self.stop_action.isEnabled():
+            return  # execution en cours : ne pas muter le projet en parallele
+        item = self.tree.itemAt(pos)
+        if item is None:
+            return
+        coords = item.data(0, Qt.ItemDataRole.UserRole)
+        if not coords:
+            return
+
+        menu = QMenu(self)
+        if len(coords) == 3:
+            duplicate_action = menu.addAction("Dupliquer ce test step")
+        else:
+            duplicate_action = menu.addAction("Dupliquer ce test case")
+
+        chosen = menu.exec(self.tree.viewport().mapToGlobal(pos))
+        if chosen is duplicate_action:
+            if len(coords) == 3:
+                self._duplicate_step(coords)
+            else:
+                self._duplicate_case(coords)
+
+    def _duplicate_step(self, coords):
+        si, ci, sti = coords
+        case = self.project.test_suites[si].test_cases[ci]
+        step = case.test_steps[sti]
+        namespace = getattr(self.project, "_xml_namespace", "")
+        new_step = serializer.duplicate_test_step(namespace, case, step)
+
+        self._populate_tree()
+        new_item = self._step_items.get((si, ci, len(case.test_steps) - 1))
+        if new_item:
+            self.tree.setCurrentItem(new_item)
+        self.status_bar.showMessage(f"Etape dupliquee : « {new_step.name} ».")
+
+    def _duplicate_case(self, coords):
+        si, ci = coords
+        suite = self.project.test_suites[si]
+        case = suite.test_cases[ci]
+        namespace = getattr(self.project, "_xml_namespace", "")
+        new_case = serializer.duplicate_test_case(namespace, suite, case)
+
+        self._populate_tree()
+        new_item = self._case_items.get((si, len(suite.test_cases) - 1))
+        if new_item:
+            self.tree.setCurrentItem(new_item)
+        self.status_bar.showMessage(f"Test case duplique : « {new_case.name} ».")
 
     # ---------- Proprietes ----------
     def edit_properties(self):
@@ -574,7 +628,10 @@ class MainWindow(QMainWindow):
         if current is None:
             return
         coords = current.data(0, Qt.ItemDataRole.UserRole)
-        if coords is None:
+        # Seuls les items de test step (coords a 3 elements) ont un detail /
+        # une edition ; les suites (pas de coords) et les test cases (coords
+        # a 2 elements) se contentent de vider le panneau de droite.
+        if not coords or len(coords) != 3:
             self.detail_title.setText(current.text(0))
             self.request_view.setPlainText("")
             self.response_view.setPlainText("")
