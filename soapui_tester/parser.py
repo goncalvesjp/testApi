@@ -212,7 +212,7 @@ def _parse_rest_step(step_elem, config_elem, interface_methods, interface_endpoi
 
     assertions = _parse_assertions(container) if container is not None else []
 
-    return TestStep(
+    step = TestStep(
         name=step_elem.get("name", ""),
         step_type="restrequest",
         method=method.upper(),
@@ -224,6 +224,9 @@ def _parse_rest_step(step_elem, config_elem, interface_methods, interface_endpoi
         assertions=assertions,
         disabled=step_elem.get("disabled") == "true",
     )
+    step._xml_container_elem = container
+    step._xml_config_elem = config_elem
+    return step
 
 
 def _parse_soap_step(step_elem, config_elem) -> TestStep:
@@ -238,7 +241,7 @@ def _parse_soap_step(step_elem, config_elem) -> TestStep:
     headers = _parse_headers(container)
     assertions = _parse_assertions(container)
 
-    return TestStep(
+    step = TestStep(
         name=step_elem.get("name", ""),
         step_type="request",
         method="POST",
@@ -250,6 +253,9 @@ def _parse_soap_step(step_elem, config_elem) -> TestStep:
         assertions=assertions,
         disabled=step_elem.get("disabled") == "true",
     )
+    step._xml_container_elem = container
+    step._xml_config_elem = config_elem
+    return step
 
 
 def _parse_test_step(step_elem, interface_methods, interface_endpoints) -> TestStep:
@@ -257,23 +263,30 @@ def _parse_test_step(step_elem, interface_methods, interface_endpoints) -> TestS
     config_elem = _find(step_elem, "config")
 
     if step_type == "restrequest":
-        return _parse_rest_step(step_elem, config_elem, interface_methods, interface_endpoints)
-    if step_type == "request":
-        return _parse_soap_step(step_elem, config_elem)
-    if step_type == "httprequest":
+        step = _parse_rest_step(step_elem, config_elem, interface_methods, interface_endpoints)
+    elif step_type == "request":
+        step = _parse_soap_step(step_elem, config_elem)
+    elif step_type == "httprequest":
         # meme logique que REST, sans resolution d'interface
-        return _parse_rest_step(step_elem, config_elem, {}, {})
+        step = _parse_rest_step(step_elem, config_elem, {}, {})
+    else:
+        step = TestStep(
+            name=step_elem.get("name", ""),
+            step_type=f"unsupported:{step_type}",
+            disabled=True,
+        )
 
-    return TestStep(
-        name=step_elem.get("name", ""),
-        step_type=f"unsupported:{step_type}",
-        disabled=True,
-    )
+    # Reference vers l'element XML source, utilisee par serializer.py pour
+    # ecrire les modifications faites depuis l'IHM (nom / desactivation),
+    # y compris pour les types de step non supportes.
+    step._xml_step_elem = step_elem
+    return step
 
 
 def parse_project(path: str) -> Project:
     tree = ET.parse(path)
     root = tree.getroot()
+    namespace = root.tag.split("}", 1)[0] + "}" if "}" in root.tag else ""
 
     project_name = root.get("name", "Projet SoapUI")
     properties = _parse_properties(root)
@@ -296,4 +309,9 @@ def parse_project(path: str) -> Project:
             )
         test_suites.append(TestSuite(name=ts_elem.get("name", ""), test_cases=test_cases))
 
-    return Project(name=project_name, test_suites=test_suites, properties=properties, source_path=path)
+    project = Project(name=project_name, test_suites=test_suites, properties=properties, source_path=path)
+    # Conserves pour permettre a serializer.save_project() de reecrire le
+    # fichier source en ne modifiant que ce qui a change dans l'IHM.
+    project._xml_tree = tree
+    project._xml_namespace = namespace
+    return project

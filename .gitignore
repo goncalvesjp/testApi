@@ -14,3 +14,4 @@ dist/
 # Éditeurs / OS
 .DS_Store
 .idea/
+/sample/bak/

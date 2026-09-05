@@ -41,8 +41,24 @@ make run
    SKIPPED)
 4. Cliquer sur un test step affiche son détail dans le panneau de droite :
    onglets **Requête** / **Réponse** / **Assertions** (avec la colonne
-   Attendu vs Reçu)
-5. **Exporter le rapport HTML…** — sauvegarde le rapport consultable hors de
+   Attendu vs Reçu) / **Modifier**
+5. **Modifier** — éditer le nom, l'état activé/désactivé, la méthode,
+   l'endpoint, le corps, les en-têtes et les assertions (type, nom,
+   configuration au format `clé: valeur` par ligne) d'un test step, puis
+   cliquer **Appliquer les modifications à cette étape** pour les répercuter
+   en mémoire (visible immédiatement dans l'arbre et lors du prochain
+   lancement des tests)
+6. **💾 Enregistrer le projet** — écrit toutes les modifications appliquées
+   dans le fichier `soapui-project.xml` source (confirmation demandée avant
+   d'écraser le fichier). Seuls les éléments touchés sont modifiés dans le
+   XML ; tout le reste (interfaces, steps non supportés, réglages projet...)
+   est préservé tel quel. Limite : pour un test step REST, l'URL affichée
+   dans l'IHM fusionne l'endpoint et le `resourcePath` d'origine ; à
+   l'enregistrement, l'URL complète est réécrite dans `<con:endpoint>` et
+   `resourcePath` est vidé — le comportement à l'exécution est identique,
+   seule la structure interne du XML diffère légèrement de l'original
+   SoapUI
+7. **Exporter le rapport HTML…** — sauvegarde le rapport consultable hors de
    l'appli
 
 ### Ligne de commande (scripts, CI)
@@ -121,11 +137,12 @@ main.py                          Point d'entrée (CLI argparse + lancement IHM)
 soapui_tester/
   parser.py                      soapui-project.xml -> modèles Python
   models.py                      Project / TestSuite / TestCase / TestStep / Assertion
+  serializer.py                  Réécrit les modifications d'un Project dans son soapui-project.xml source
   runner.py                      Exécute les requêtes HTTP (requests) et les assertions
   assertions.py                  Un évaluateur par type d'assertion SoapUI
   results.py                     RunResult / SuiteResult / CaseResult / StepResult / AssertionResult
   report.py                      Génère le rapport HTML (et un résumé texte pour la CLI)
-  gui.py                         IHM PyQt6 (QMainWindow + QThread pour l'exécution)
+  gui.py                         IHM PyQt6 (QMainWindow + QThread pour l'exécution + édition des test steps)
 sample/                          Fichiers de projet SoapUI d'exemple
 tests/                           Suite pytest (+ pytest-qt pour l'IHM)
 packaging/                       Specs PyInstaller (macOS, Linux) + Dockerfile de build Linux

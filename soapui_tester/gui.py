@@ -7,12 +7,15 @@ from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QColor
 from PyQt6.QtWidgets import (
     QApplication,
+    QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QProgressBar,
@@ -31,9 +34,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from . import serializer
+from .models import Assertion
 from .parser import parse_project
 from .report import save_html_report
 from .runner import run_project
+
+_HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 
 _STATUS_COLORS = {
     "PASS": QColor("#1b8a4c"),
@@ -48,6 +55,61 @@ def _fmt_headers(headers: dict) -> str:
     if not headers:
         return "(aucun en-tete)"
     return "\n".join(f"{k}: {v}" for k, v in headers.items())
+
+
+def _add_kv_row(table: QTableWidget, key: str = "", value: str = ""):
+    row = table.rowCount()
+    table.insertRow(row)
+    table.setItem(row, 0, QTableWidgetItem(key))
+    table.setItem(row, 1, QTableWidgetItem(value))
+
+
+def _fill_kv_table(table: QTableWidget, data: dict):
+    table.setRowCount(0)
+    for key, value in data.items():
+        _add_kv_row(table, key, value)
+
+
+def _read_kv_table(table: QTableWidget) -> dict:
+    result = {}
+    for row in range(table.rowCount()):
+        key_item = table.item(row, 0)
+        value_item = table.item(row, 1)
+        key = key_item.text().strip() if key_item else ""
+        if key:
+            result[key] = value_item.text() if value_item else ""
+    return result
+
+
+def _remove_selected_rows(table: QTableWidget):
+    rows = sorted({idx.row() for idx in table.selectedIndexes()}, reverse=True)
+    for row in rows:
+        table.removeRow(row)
+
+
+def _config_to_text(config: dict) -> str:
+    lines = []
+    for key, value in config.items():
+        for item in value if isinstance(value, list) else [value]:
+            lines.append(f"{key}: {item}")
+    return "\n".join(lines)
+
+
+def _text_to_config(text: str) -> dict:
+    config = {}
+    for line in text.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key, value = key.strip(), value.strip()
+        if not key:
+            continue
+        if key in config:
+            existing = config[key]
+            config[key] = existing + [value] if isinstance(existing, list) else [existing, value]
+        else:
+            config[key] = value
+    return config
 
 
 class RunWorker(QObject):
@@ -90,15 +152,14 @@ class PropertiesDialog(QDialog):
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["Nom", "Valeur"])
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        for name, value in properties.items():
-            self._add_row(name, value)
+        _fill_kv_table(self.table, properties)
         layout.addWidget(self.table)
 
         btn_row = QHBoxLayout()
         add_btn = QPushButton("+ Ajouter")
-        add_btn.clicked.connect(lambda: self._add_row("", ""))
+        add_btn.clicked.connect(lambda: _add_kv_row(self.table))
         del_btn = QPushButton("- Supprimer la ligne")
-        del_btn.clicked.connect(self._remove_selected)
+        del_btn.clicked.connect(lambda: _remove_selected_rows(self.table))
         btn_row.addWidget(add_btn)
         btn_row.addWidget(del_btn)
         btn_row.addStretch(1)
@@ -109,26 +170,8 @@ class PropertiesDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
-    def _add_row(self, name, value):
-        row = self.table.rowCount()
-        self.table.insertRow(row)
-        self.table.setItem(row, 0, QTableWidgetItem(name))
-        self.table.setItem(row, 1, QTableWidgetItem(value))
-
-    def _remove_selected(self):
-        rows = sorted({idx.row() for idx in self.table.selectedIndexes()}, reverse=True)
-        for row in rows:
-            self.table.removeRow(row)
-
     def get_properties(self) -> dict:
-        props = {}
-        for row in range(self.table.rowCount()):
-            name_item = self.table.item(row, 0)
-            value_item = self.table.item(row, 1)
-            name = name_item.text().strip() if name_item else ""
-            if name:
-                props[name] = value_item.text() if value_item else ""
-        return props
+        return _read_kv_table(self.table)
 
 
 class MainWindow(QMainWindow):
@@ -150,6 +193,9 @@ class MainWindow(QMainWindow):
         self._runnable_coords = []
         self._step_results = {}
         self._progress_index = 0
+
+        self._current_edit_coords = None
+        self._editing_assertions = []
 
         self._build_ui()
 
@@ -175,6 +221,11 @@ class MainWindow(QMainWindow):
         props_action = QAction("Proprietes du projet…", self)
         props_action.triggered.connect(self.edit_properties)
         toolbar.addAction(props_action)
+
+        self.save_action = QAction("💾 Enregistrer le projet", self)
+        self.save_action.triggered.connect(self.save_project)
+        self.save_action.setEnabled(False)
+        toolbar.addAction(self.save_action)
 
         self.export_action = QAction("Exporter le rapport HTML…", self)
         self.export_action.triggered.connect(self.export_report)
@@ -218,6 +269,8 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.request_view, "Requete")
         self.tabs.addTab(self.response_view, "Reponse")
         self.tabs.addTab(self.assertions_table, "Assertions")
+        self.edit_tab = self._build_edit_tab()
+        self.tabs.addTab(self.edit_tab, "Modifier")
         right_layout.addWidget(self.tabs)
 
         splitter.addWidget(right)
@@ -231,6 +284,80 @@ class MainWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ouvrez un fichier soapui-project.xml pour commencer.")
+
+    def _build_edit_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        name_row = QHBoxLayout()
+        name_row.addWidget(QLabel("Nom :"))
+        self.edit_name = QLineEdit()
+        name_row.addWidget(self.edit_name, stretch=1)
+        self.edit_enabled_cb = QCheckBox("Active")
+        name_row.addWidget(self.edit_enabled_cb)
+        layout.addLayout(name_row)
+
+        request_row = QHBoxLayout()
+        request_row.addWidget(QLabel("Methode :"))
+        self.edit_method_combo = QComboBox()
+        self.edit_method_combo.addItems(_HTTP_METHODS)
+        request_row.addWidget(self.edit_method_combo)
+        request_row.addWidget(QLabel("Endpoint :"))
+        self.edit_endpoint = QLineEdit()
+        request_row.addWidget(self.edit_endpoint, stretch=1)
+        layout.addLayout(request_row)
+
+        layout.addWidget(QLabel("En-tetes :"))
+        self.edit_headers_table = QTableWidget(0, 2)
+        self.edit_headers_table.setHorizontalHeaderLabels(["Nom", "Valeur"])
+        self.edit_headers_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.edit_headers_table.setMaximumHeight(120)
+        layout.addWidget(self.edit_headers_table)
+
+        headers_btn_row = QHBoxLayout()
+        self.add_header_btn = QPushButton("+ En-tete")
+        self.add_header_btn.clicked.connect(lambda: _add_kv_row(self.edit_headers_table))
+        self.del_header_btn = QPushButton("- Supprimer")
+        self.del_header_btn.clicked.connect(lambda: _remove_selected_rows(self.edit_headers_table))
+        headers_btn_row.addWidget(self.add_header_btn)
+        headers_btn_row.addWidget(self.del_header_btn)
+        headers_btn_row.addStretch(1)
+        layout.addLayout(headers_btn_row)
+
+        layout.addWidget(QLabel("Corps de la requete :"))
+        self.edit_body = QTextEdit()
+        layout.addWidget(self.edit_body, stretch=1)
+
+        layout.addWidget(QLabel("Assertions :"))
+        assertions_row = QHBoxLayout()
+        self.edit_assertions_table = QTableWidget(0, 2)
+        self.edit_assertions_table.setHorizontalHeaderLabels(["Type", "Nom"])
+        self.edit_assertions_table.currentCellChanged.connect(self._on_assertion_row_changed)
+        assertions_row.addWidget(self.edit_assertions_table, stretch=1)
+
+        assertion_detail_col = QVBoxLayout()
+        assertion_detail_col.addWidget(QLabel("Configuration (cle: valeur, une par ligne) :"))
+        self.edit_assertion_config = QTextEdit()
+        self.edit_assertion_config.setEnabled(False)
+        assertion_detail_col.addWidget(self.edit_assertion_config)
+        assertions_row.addLayout(assertion_detail_col, stretch=1)
+        layout.addLayout(assertions_row)
+
+        assertions_btn_row = QHBoxLayout()
+        self.add_assertion_btn = QPushButton("+ Assertion")
+        self.add_assertion_btn.clicked.connect(self._add_assertion_row)
+        self.del_assertion_btn = QPushButton("- Supprimer")
+        self.del_assertion_btn.clicked.connect(self._remove_assertion_row)
+        assertions_btn_row.addWidget(self.add_assertion_btn)
+        assertions_btn_row.addWidget(self.del_assertion_btn)
+        assertions_btn_row.addStretch(1)
+        layout.addLayout(assertions_btn_row)
+
+        self.apply_edit_btn = QPushButton("Appliquer les modifications a cette etape")
+        self.apply_edit_btn.clicked.connect(self._apply_step_edits)
+        layout.addWidget(self.apply_edit_btn)
+
+        return tab
 
     # ---------- Chargement du projet ----------
     def open_project(self):
@@ -249,6 +376,7 @@ class MainWindow(QMainWindow):
         self.export_action.setEnabled(False)
         self._populate_tree()
         self.run_action.setEnabled(True)
+        self.save_action.setEnabled(True)
         total_steps = len(self._runnable_coords)
         self.status_bar.showMessage(
             f"Projet '{self.project.name}' charge — {len(self.project.test_suites)} test suite(s), "
@@ -311,6 +439,7 @@ class MainWindow(QMainWindow):
         self.run_action.setEnabled(False)
         self.stop_action.setEnabled(True)
         self.export_action.setEnabled(False)
+        self.edit_tab.setEnabled(False)
         self.status_bar.showMessage("Execution en cours…")
 
         for item in self._suite_items.values():
@@ -381,6 +510,7 @@ class MainWindow(QMainWindow):
         self.run_action.setEnabled(True)
         self.stop_action.setEnabled(False)
         self.export_action.setEnabled(True)
+        self.edit_tab.setEnabled(True)
 
         for si, suite in enumerate(self.project.test_suites):
             self._refresh_case_and_suite_status(si)
@@ -431,10 +561,15 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(False)
         self.run_action.setEnabled(True)
         self.stop_action.setEnabled(False)
+        self.edit_tab.setEnabled(True)
         self.status_bar.showMessage("Echec de l'execution.")
         QMessageBox.critical(self, "Erreur d'execution", message)
 
     # ---------- Detail panel ----------
+    def _step_at(self, coords):
+        si, ci, sti = coords
+        return self.project.test_suites[si].test_cases[ci].test_steps[sti]
+
     def _on_selection_changed(self, current, previous):
         if current is None:
             return
@@ -444,13 +579,16 @@ class MainWindow(QMainWindow):
             self.request_view.setPlainText("")
             self.response_view.setPlainText("")
             self.assertions_table.setRowCount(0)
+            self._current_edit_coords = None
+            self.edit_tab.setEnabled(False)
             return
+        self.edit_tab.setEnabled(True)
         self._show_step_detail(coords)
 
     def _show_step_detail(self, coords):
-        si, ci, sti = coords
-        step = self.project.test_suites[si].test_cases[ci].test_steps[sti]
+        step = self._step_at(coords)
         result = self._step_results.get(coords)
+        self._load_step_for_edit(coords)
 
         self.detail_title.setText(f"{step.name}  —  {step.step_type}")
 
@@ -486,6 +624,137 @@ class MainWindow(QMainWindow):
                 if col == 2:
                     cell.setForeground(_STATUS_COLORS.get(ar.status, QColor("black")))
                 self.assertions_table.setItem(row, col, cell)
+
+    # ---------- Edition des test steps ----------
+    def _load_step_for_edit(self, coords):
+        self._current_edit_coords = coords
+        step = self._step_at(coords)
+
+        self.edit_name.setText(step.name)
+        self.edit_enabled_cb.setChecked(not step.disabled)
+
+        is_rest = step.step_type == "restrequest"
+        self.edit_method_combo.setEnabled(is_rest)
+        if is_rest:
+            idx = self.edit_method_combo.findText(step.method)
+            self.edit_method_combo.setCurrentIndex(idx if idx >= 0 else 0)
+
+        self.edit_endpoint.setText(step.endpoint)
+        self.edit_body.setPlainText(step.request_body)
+        _fill_kv_table(self.edit_headers_table, step.headers)
+
+        self._editing_assertions = [
+            Assertion(type=a.type, name=a.name, config=dict(a.config)) for a in step.assertions
+        ]
+        self._refresh_assertions_table()
+
+        editable = step.step_type in ("restrequest", "request")
+        for widget in (
+            self.edit_endpoint,
+            self.edit_body,
+            self.edit_headers_table,
+            self.add_header_btn,
+            self.del_header_btn,
+            self.edit_assertions_table,
+            self.add_assertion_btn,
+            self.del_assertion_btn,
+        ):
+            widget.setEnabled(editable)
+
+    def _refresh_assertions_table(self):
+        self.edit_assertions_table.blockSignals(True)
+        self.edit_assertions_table.setRowCount(len(self._editing_assertions))
+        for row, assertion in enumerate(self._editing_assertions):
+            self.edit_assertions_table.setItem(row, 0, QTableWidgetItem(assertion.type))
+            self.edit_assertions_table.setItem(row, 1, QTableWidgetItem(assertion.name))
+        self.edit_assertions_table.blockSignals(False)
+        self.edit_assertion_config.clear()
+        self.edit_assertion_config.setEnabled(False)
+
+    def _flush_assertion_config(self, row):
+        if 0 <= row < len(self._editing_assertions):
+            self._editing_assertions[row].config = _text_to_config(self.edit_assertion_config.toPlainText())
+
+    def _on_assertion_row_changed(self, current_row, current_col, previous_row, previous_col):
+        self._flush_assertion_config(previous_row)
+        if 0 <= current_row < len(self._editing_assertions):
+            self.edit_assertion_config.setEnabled(self.edit_assertions_table.isEnabled())
+            self.edit_assertion_config.setPlainText(_config_to_text(self._editing_assertions[current_row].config))
+        else:
+            self.edit_assertion_config.clear()
+            self.edit_assertion_config.setEnabled(False)
+
+    def _add_assertion_row(self):
+        self._editing_assertions.append(
+            Assertion(type="Valid HTTP Status Codes", name="Valid HTTP Status Codes", config={})
+        )
+        self._refresh_assertions_table()
+        self.edit_assertions_table.setCurrentCell(len(self._editing_assertions) - 1, 0)
+
+    def _remove_assertion_row(self):
+        rows = sorted({idx.row() for idx in self.edit_assertions_table.selectedIndexes()}, reverse=True)
+        for row in rows:
+            del self._editing_assertions[row]
+        self._refresh_assertions_table()
+
+    def _collect_assertions(self) -> list:
+        self._flush_assertion_config(self.edit_assertions_table.currentRow())
+        result = []
+        for row, assertion in enumerate(self._editing_assertions):
+            type_item = self.edit_assertions_table.item(row, 0)
+            name_item = self.edit_assertions_table.item(row, 1)
+            a_type = type_item.text().strip() if type_item else assertion.type
+            a_name = (name_item.text().strip() if name_item else assertion.name) or a_type
+            result.append(Assertion(type=a_type, name=a_name, config=dict(assertion.config)))
+        return result
+
+    def _apply_step_edits(self):
+        coords = self._current_edit_coords
+        if coords is None:
+            return
+        step = self._step_at(coords)
+
+        name = self.edit_name.text().strip()
+        if name:
+            step.name = name
+        step.disabled = not self.edit_enabled_cb.isChecked()
+
+        if step.step_type in ("restrequest", "request"):
+            if step.step_type == "restrequest":
+                step.method = self.edit_method_combo.currentText()
+            step.endpoint = self.edit_endpoint.text()
+            step.request_body = self.edit_body.toPlainText()
+            step.headers = _read_kv_table(self.edit_headers_table)
+            step.assertions = self._collect_assertions()
+
+        item = self._step_items.get(coords)
+        if item:
+            label = step.name + (" (desactive)" if step.disabled else "")
+            item.setText(0, label)
+            info = f"{step.method} {step.endpoint}" if step.is_executable else step.step_type
+            item.setText(2, info)
+
+        self.status_bar.showMessage(f"Modifications appliquees a l'etape « {step.name} ».")
+
+    def save_project(self):
+        if not self.project:
+            QMessageBox.information(self, "Aucun projet", "Ouvrez d'abord un projet SoapUI.")
+            return
+        path = self.project.source_path
+        reply = QMessageBox.question(
+            self,
+            "Enregistrer le projet",
+            f"Ecrire les modifications dans :\n{path}\n\nCeci ecrasera le fichier source. Continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            serializer.save_project(self.project)
+        except Exception as exc:
+            QMessageBox.critical(self, "Erreur d'enregistrement", str(exc))
+            return
+        self.status_bar.showMessage(f"Projet enregistre : {path}")
 
     # ---------- Export ----------
     def export_report(self):
