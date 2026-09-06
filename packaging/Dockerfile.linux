@@ -17,6 +17,7 @@ WORKDIR /app
 COPY requirements.txt ./
 COPY main.py ./
 COPY soapui_tester/ ./soapui_tester/
+COPY gui/ ./gui/
 COPY packaging/linux.spec ./packaging/linux.spec
 
 RUN python3 -m venv /opt/venv \

@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
-    QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
@@ -34,6 +33,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from gui.ui_properties_dialog import Ui_PropertiesDialog
 
 from . import serializer
 from .models import Assertion
@@ -143,33 +144,17 @@ class RunWorker(QObject):
             self.failed.emit(str(exc))
 
 
-class PropertiesDialog(QDialog):
+class PropertiesDialog(QDialog, Ui_PropertiesDialog):
     def __init__(self, properties: dict, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Proprietes du projet")
-        self.resize(420, 320)
-        layout = QVBoxLayout(self)
-
-        self.table = QTableWidget(0, 2)
-        self.table.setHorizontalHeaderLabels(["Nom", "Valeur"])
+        self.setupUi(self)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         _fill_kv_table(self.table, properties)
-        layout.addWidget(self.table)
 
-        btn_row = QHBoxLayout()
-        add_btn = QPushButton("+ Ajouter")
-        add_btn.clicked.connect(lambda: _add_kv_row(self.table))
-        del_btn = QPushButton("- Supprimer la ligne")
-        del_btn.clicked.connect(lambda: _remove_selected_rows(self.table))
-        btn_row.addWidget(add_btn)
-        btn_row.addWidget(del_btn)
-        btn_row.addStretch(1)
-        layout.addLayout(btn_row)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        self.add_btn.clicked.connect(lambda: _add_kv_row(self.table))
+        self.del_btn.clicked.connect(lambda: _remove_selected_rows(self.table))
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
 
     def get_properties(self) -> dict:
         return _read_kv_table(self.table)

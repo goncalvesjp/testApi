@@ -45,22 +45,20 @@ venv: $(VENV)/bin/python3
 	$(PIP) install -q -r requirements.txt pytest pytest-qt pyinstaller
 
 ## Regenere gui/ui_*.py a partir de ui/*.ui (edite les .ui avec Qt Designer, pas les .py generes).
-## Non utilise pour l'instant : l'IHM de ce projet (soapui_tester/gui.py) est ecrite a la main,
-## sans fichier .ui. Cible conservee pour coherence avec le squelette, sans effet tant que ui/
-## est vide.
 $(GUI_DIR)/ui_%.py: $(UI_DIR)/%.ui | venv
+	@mkdir -p $(GUI_DIR)
 	$(PYUIC) $< -o $@
 
 ui: venv $(UI_GENERATED)
 
-test: venv
+test: venv ui
 	QT_QPA_PLATFORM=offscreen $(VENV)/bin/python -m pytest tests/ -v
 
-run: venv
+run: venv ui
 	$(VENV)/bin/python main.py
 
 ## macOS : bundle .app natif, construit localement.
-macos: venv
+macos: venv ui
 	$(PYI) packaging/macos.spec --noconfirm --clean \
 		--distpath $(DIST_DIR)/macos --workpath $(BUILD_DIR)/macos
 	@echo "-> $(DIST_DIR)/macos/$(APP_NAME).app"
@@ -77,7 +75,7 @@ linux:
 	@echo "-> $(DIST_DIR)/linux/$(LINUX_BIN)"
 
 ## Linux : build direct, a lancer sur une vraie machine/VM Linux (pas de conteneur).
-linux-native:
+linux-native: ui
 	$(PYTHON) -m venv .venv-linux
 	.venv-linux/bin/pip install -q --upgrade pip
 	.venv-linux/bin/pip install -q -r requirements.txt pyinstaller
