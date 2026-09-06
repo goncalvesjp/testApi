@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1200</width>
+    <height>760</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Testeur de projets SoapUI</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="centralLayout">
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <widget class="QTreeWidget" name="tree">
+       <column>
+        <property name="text">
+         <string>Nom</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Statut</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Info</string>
+        </property>
+       </column>
+      </widget>
+      <widget class="QWidget" name="rightPanel">
+       <layout class="QVBoxLayout" name="rightLayout">
+        <item>
+         <widget class="QLabel" name="detail_title">
+          <property name="styleSheet">
+           <string notr="true">font-weight: 600; padding: 4px;</string>
+          </property>
+          <property name="text">
+           <string>Selectionnez un test step pour voir le detail.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTabWidget" name="tabs">
+          <widget class="QTextEdit" name="request_view">
+           <attribute name="title">
+            <string>Requete</string>
+           </attribute>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+          <widget class="QTextEdit" name="response_view">
+           <attribute name="title">
+            <string>Reponse</string>
+           </attribute>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+          <widget class="QTableWidget" name="assertions_table">
+           <attribute name="title">
+            <string>Assertions</string>
+           </attribute>
+           <column>
+            <property name="text">
+             <string>Assertion</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Type</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Statut</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Attendu</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Recu</string>
+            </property>
+           </column>
+          </widget>
+          <widget class="QWidget" name="edit_tab">
+           <attribute name="title">
+            <string>Modifier</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="editTabLayout">
+            <item>
+             <layout class="QHBoxLayout" name="nameRowLayout">
+              <item>
+               <widget class="QLabel" name="nameRowLabel">
+                <property name="text">
+                 <string>Nom :</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="edit_name"/>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="edit_enabled_cb">
+                <property name="text">
+                 <string>Active</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="requestRowLayout">
+              <item>
+               <widget class="QLabel" name="requestRowMethodLabel">
+                <property name="text">
+                 <string>Methode :</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="edit_method_combo"/>
+              </item>
+              <item>
+               <widget class="QLabel" name="requestRowEndpointLabel">
+                <property name="text">
+                 <string>Endpoint :</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="edit_endpoint"/>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QLabel" name="headersLabel">
+              <property name="text">
+               <string>En-tetes :</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QTableWidget" name="edit_headers_table">
+              <column>
+               <property name="text">
+                <string>Nom</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Valeur</string>
+               </property>
+              </column>
+             </widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="headersBtnRowLayout">
+              <item>
+               <widget class="QPushButton" name="add_header_btn">
+                <property name="text">
+                 <string>+ En-tete</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="del_header_btn">
+                <property name="text">
+                 <string>- Supprimer</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="headersBtnRowSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QLabel" name="bodyLabel">
+              <property name="text">
+               <string>Corps de la requete :</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QTextEdit" name="edit_body"/>
+            </item>
+            <item>
+             <widget class="QLabel" name="assertionsLabel">
+              <property name="text">
+               <string>Assertions :</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="assertionsRowLayout">
+              <item>
+               <widget class="QTableWidget" name="edit_assertions_table">
+                <column>
+                 <property name="text">
+                  <string>Type</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Nom</string>
+                 </property>
+                </column>
+               </widget>
+              </item>
+              <item>
+               <layout class="QVBoxLayout" name="assertionDetailColLayout">
+                <item>
+                 <widget class="QLabel" name="assertionConfigLabel">
+                  <property name="text">
+                   <string>Configuration (cle: valeur, une par ligne) :</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QTextEdit" name="edit_assertion_config">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="assertionsBtnRowLayout">
+              <item>
+               <widget class="QPushButton" name="add_assertion_btn">
+                <property name="text">
+                 <string>+ Assertion</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="del_assertion_btn">
+                <property name="text">
+                 <string>- Supprimer</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="assertionsBtnRowSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QPushButton" name="apply_edit_btn">
+              <property name="text">
+               <string>Appliquer les modifications a cette etape</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="status_bar"/>
+  <widget class="QToolBar" name="toolbar">
+   <property name="windowTitle">
+    <string>Actions</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="open_action"/>
+   <addaction name="run_action"/>
+   <addaction name="stop_action"/>
+   <addaction name="props_action"/>
+   <addaction name="save_action"/>
+   <addaction name="export_action"/>
+   <addaction name="separator"/>
+   <addaction name="insecure_action"/>
+  </widget>
+  <action name="open_action">
+   <property name="text">
+    <string>Ouvrir un projet SoapUI…</string>
+   </property>
+  </action>
+  <action name="run_action">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>▶ Lancer les tests</string>
+   </property>
+  </action>
+  <action name="stop_action">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>■ Arreter</string>
+   </property>
+  </action>
+  <action name="props_action">
+   <property name="text">
+    <string>Proprietes du projet…</string>
+   </property>
+  </action>
+  <action name="save_action">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>💾 Enregistrer le projet</string>
+   </property>
+  </action>
+  <action name="export_action">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Exporter le rapport HTML…</string>
+   </property>
+  </action>
+  <action name="insecure_action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Ignorer erreurs SSL</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

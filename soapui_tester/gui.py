@@ -4,36 +4,24 @@ import sys
 import threading
 
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
-from PyQt6.QtGui import QAction, QColor
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QApplication,
-    QCheckBox,
-    QComboBox,
     QDialog,
     QFileDialog,
-    QHBoxLayout,
     QHeaderView,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QMenu,
     QMessageBox,
     QProgressBar,
-    QPushButton,
     QSpinBox,
-    QSplitter,
-    QStatusBar,
     QTableWidget,
     QTableWidgetItem,
-    QTabWidget,
-    QTextEdit,
-    QToolBar,
-    QTreeWidget,
     QTreeWidgetItem,
-    QVBoxLayout,
-    QWidget,
 )
 
+from gui.ui_main_window import Ui_MainWindow
 from gui.ui_properties_dialog import Ui_PropertiesDialog
 
 from . import serializer
@@ -160,11 +148,9 @@ class PropertiesDialog(QDialog, Ui_PropertiesDialog):
         return _read_kv_table(self.table)
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Testeur de projets SoapUI")
-        self.resize(1200, 760)
 
         self.project = None
         self.run_result = None
@@ -187,165 +173,56 @@ class MainWindow(QMainWindow):
 
     # ---------- UI ----------
     def _build_ui(self):
-        toolbar = QToolBar("Actions")
-        self.addToolBar(toolbar)
+        self.setupUi(self)
 
-        open_action = QAction("Ouvrir un projet SoapUI…", self)
-        open_action.triggered.connect(self.open_project)
-        toolbar.addAction(open_action)
-
-        self.run_action = QAction("▶ Lancer les tests", self)
-        self.run_action.triggered.connect(self.run_tests)
-        self.run_action.setEnabled(False)
-        toolbar.addAction(self.run_action)
-
-        self.stop_action = QAction("■ Arreter", self)
-        self.stop_action.triggered.connect(self.stop_tests)
-        self.stop_action.setEnabled(False)
-        toolbar.addAction(self.stop_action)
-
-        props_action = QAction("Proprietes du projet…", self)
-        props_action.triggered.connect(self.edit_properties)
-        toolbar.addAction(props_action)
-
-        self.save_action = QAction("💾 Enregistrer le projet", self)
-        self.save_action.triggered.connect(self.save_project)
-        self.save_action.setEnabled(False)
-        toolbar.addAction(self.save_action)
-
-        self.export_action = QAction("Exporter le rapport HTML…", self)
-        self.export_action.triggered.connect(self.export_report)
-        self.export_action.setEnabled(False)
-        toolbar.addAction(self.export_action)
-
-        toolbar.addSeparator()
-        toolbar.addWidget(QLabel(" Timeout (s): "))
+        # Widgets non representables proprement dans le .ui : inseres dans la
+        # toolbar par code, comme avant la migration vers Designer. Le .ui
+        # place deja un separateur entre export_action et insecure_action ;
+        # on insere le label + le spinbox entre les deux.
+        self.toolbar.insertWidget(self.insecure_action, QLabel(" Timeout (s): "))
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(1, 300)
         self.timeout_spin.setValue(30)
-        toolbar.addWidget(self.timeout_spin)
+        self.toolbar.insertWidget(self.insecure_action, self.timeout_spin)
 
-        self.insecure_action = QAction("Ignorer erreurs SSL", self)
-        self.insecure_action.setCheckable(True)
-        toolbar.addAction(self.insecure_action)
+        self.edit_method_combo.addItems(_HTTP_METHODS)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        self.tree = QTreeWidget()
-        self.tree.setHeaderLabels(["Nom", "Statut", "Info"])
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.tree.currentItemChanged.connect(self._on_selection_changed)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.tree.customContextMenuRequested.connect(self._show_tree_context_menu)
-        splitter.addWidget(self.tree)
 
-        right = QWidget()
-        right_layout = QVBoxLayout(right)
-        self.detail_title = QLabel("Selectionnez un test step pour voir le detail.")
-        self.detail_title.setStyleSheet("font-weight: 600; padding: 4px;")
-        right_layout.addWidget(self.detail_title)
-
-        self.tabs = QTabWidget()
-        self.request_view = QTextEdit(readOnly=True)
-        self.response_view = QTextEdit(readOnly=True)
-        self.assertions_table = QTableWidget(0, 5)
-        self.assertions_table.setHorizontalHeaderLabels(["Assertion", "Type", "Statut", "Attendu", "Recu"])
         self.assertions_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.assertions_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self.assertions_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
-        self.tabs.addTab(self.request_view, "Requete")
-        self.tabs.addTab(self.response_view, "Reponse")
-        self.tabs.addTab(self.assertions_table, "Assertions")
-        self.edit_tab = self._build_edit_tab()
-        self.tabs.addTab(self.edit_tab, "Modifier")
-        right_layout.addWidget(self.tabs)
+        self.edit_headers_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.edit_headers_table.setMaximumHeight(120)
 
-        splitter.addWidget(right)
-        splitter.setSizes([420, 780])
-
-        self.setCentralWidget(splitter)
+        self.splitter.setSizes([420, 780])
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.status_bar = QStatusBar()
         self.status_bar.addPermanentWidget(self.progress_bar)
-        self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ouvrez un fichier soapui-project.xml pour commencer.")
 
-    def _build_edit_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
+        # ---------- Connexions de signaux ----------
+        self.open_action.triggered.connect(self.open_project)
+        self.run_action.triggered.connect(self.run_tests)
+        self.stop_action.triggered.connect(self.stop_tests)
+        self.props_action.triggered.connect(self.edit_properties)
+        self.save_action.triggered.connect(self.save_project)
+        self.export_action.triggered.connect(self.export_report)
 
-        name_row = QHBoxLayout()
-        name_row.addWidget(QLabel("Nom :"))
-        self.edit_name = QLineEdit()
-        name_row.addWidget(self.edit_name, stretch=1)
-        self.edit_enabled_cb = QCheckBox("Active")
-        name_row.addWidget(self.edit_enabled_cb)
-        layout.addLayout(name_row)
+        self.tree.currentItemChanged.connect(self._on_selection_changed)
+        self.tree.customContextMenuRequested.connect(self._show_tree_context_menu)
 
-        request_row = QHBoxLayout()
-        request_row.addWidget(QLabel("Methode :"))
-        self.edit_method_combo = QComboBox()
-        self.edit_method_combo.addItems(_HTTP_METHODS)
-        request_row.addWidget(self.edit_method_combo)
-        request_row.addWidget(QLabel("Endpoint :"))
-        self.edit_endpoint = QLineEdit()
-        request_row.addWidget(self.edit_endpoint, stretch=1)
-        layout.addLayout(request_row)
-
-        layout.addWidget(QLabel("En-tetes :"))
-        self.edit_headers_table = QTableWidget(0, 2)
-        self.edit_headers_table.setHorizontalHeaderLabels(["Nom", "Valeur"])
-        self.edit_headers_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.edit_headers_table.setMaximumHeight(120)
-        layout.addWidget(self.edit_headers_table)
-
-        headers_btn_row = QHBoxLayout()
-        self.add_header_btn = QPushButton("+ En-tete")
         self.add_header_btn.clicked.connect(lambda: _add_kv_row(self.edit_headers_table))
-        self.del_header_btn = QPushButton("- Supprimer")
         self.del_header_btn.clicked.connect(lambda: _remove_selected_rows(self.edit_headers_table))
-        headers_btn_row.addWidget(self.add_header_btn)
-        headers_btn_row.addWidget(self.del_header_btn)
-        headers_btn_row.addStretch(1)
-        layout.addLayout(headers_btn_row)
 
-        layout.addWidget(QLabel("Corps de la requete :"))
-        self.edit_body = QTextEdit()
-        layout.addWidget(self.edit_body, stretch=1)
-
-        layout.addWidget(QLabel("Assertions :"))
-        assertions_row = QHBoxLayout()
-        self.edit_assertions_table = QTableWidget(0, 2)
-        self.edit_assertions_table.setHorizontalHeaderLabels(["Type", "Nom"])
         self.edit_assertions_table.currentCellChanged.connect(self._on_assertion_row_changed)
-        assertions_row.addWidget(self.edit_assertions_table, stretch=1)
-
-        assertion_detail_col = QVBoxLayout()
-        assertion_detail_col.addWidget(QLabel("Configuration (cle: valeur, une par ligne) :"))
-        self.edit_assertion_config = QTextEdit()
-        self.edit_assertion_config.setEnabled(False)
-        assertion_detail_col.addWidget(self.edit_assertion_config)
-        assertions_row.addLayout(assertion_detail_col, stretch=1)
-        layout.addLayout(assertions_row)
-
-        assertions_btn_row = QHBoxLayout()
-        self.add_assertion_btn = QPushButton("+ Assertion")
         self.add_assertion_btn.clicked.connect(self._add_assertion_row)
-        self.del_assertion_btn = QPushButton("- Supprimer")
         self.del_assertion_btn.clicked.connect(self._remove_assertion_row)
-        assertions_btn_row.addWidget(self.add_assertion_btn)
-        assertions_btn_row.addWidget(self.del_assertion_btn)
-        assertions_btn_row.addStretch(1)
-        layout.addLayout(assertions_btn_row)
 
-        self.apply_edit_btn = QPushButton("Appliquer les modifications a cette etape")
         self.apply_edit_btn.clicked.connect(self._apply_step_edits)
-        layout.addWidget(self.apply_edit_btn)
-
-        return tab
 
     # ---------- Chargement du projet ----------
     def open_project(self):
