@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMenu,
     QMessageBox,
@@ -39,6 +40,14 @@ _STATUS_COLORS = {
     "SKIPPED": QColor("#8a8f98"),
     "RUNNING": QColor("#c98a12"),
 }
+
+
+def _proxies_from_text(text: str) -> dict:
+    text = text.strip()
+    if not text:
+        return None
+    url = text if "://" in text else f"http://{text}"
+    return {"http": url, "https": url}
 
 
 def _fmt_headers(headers: dict) -> str:
@@ -108,13 +117,14 @@ class RunWorker(QObject):
     finished = pyqtSignal(object)
     failed = pyqtSignal(str)
 
-    def __init__(self, project, timeout, verify_ssl, extra_properties, cancel_event):
+    def __init__(self, project, timeout, verify_ssl, extra_properties, cancel_event, proxies=None):
         super().__init__()
         self.project = project
         self.timeout = timeout
         self.verify_ssl = verify_ssl
         self.extra_properties = extra_properties
         self.cancel_event = cancel_event
+        self.proxies = proxies
 
     def run(self):
         try:
@@ -126,6 +136,7 @@ class RunWorker(QObject):
                 on_step_done=lambda s, c, st, r: self.step_done.emit(s, c, st, r),
                 cancel_event=self.cancel_event,
                 extra_properties=self.extra_properties,
+                proxies=self.proxies,
             )
             self.finished.emit(result)
         except Exception as exc:  # garde-fou
@@ -184,6 +195,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.timeout_spin.setRange(1, 300)
         self.timeout_spin.setValue(30)
         self.toolbar.insertWidget(self.insecure_action, self.timeout_spin)
+
+        self.toolbar.insertWidget(self.insecure_action, QLabel(" Proxy : "))
+        self.proxy_edit = QLineEdit()
+        self.proxy_edit.setPlaceholderText("host:port (vide = aucun)")
+        self.proxy_edit.setMaximumWidth(160)
+        self.toolbar.insertWidget(self.insecure_action, self.proxy_edit)
 
         self.edit_method_combo.addItems(_HTTP_METHODS)
 
@@ -375,6 +392,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             verify_ssl=not self.insecure_action.isChecked(),
             extra_properties=self.property_overrides,
             cancel_event=self.cancel_event,
+            proxies=_proxies_from_text(self.proxy_edit.text()),
         )
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)

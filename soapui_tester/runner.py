@@ -17,7 +17,7 @@ def _apply_properties(step, properties: dict):
     return endpoint, body, headers, query_params
 
 
-def _run_step(step, properties: dict, timeout: float, verify_ssl: bool) -> StepResult:
+def _run_step(step, properties: dict, timeout: float, verify_ssl: bool, proxies: dict = None) -> StepResult:
     endpoint, body, headers, query_params = _apply_properties(step, properties)
 
     if step.soap_action:
@@ -47,6 +47,7 @@ def _run_step(step, properties: dict, timeout: float, verify_ssl: bool) -> StepR
             data=body.encode("utf-8") if body else None,
             timeout=timeout,
             verify=verify_ssl,
+            proxies=proxies,
         )
     except requests.RequestException as exc:
         result.error_message = str(exc)
@@ -84,6 +85,7 @@ def run_project(
     on_step_done=None,
     cancel_event=None,
     extra_properties: dict = None,
+    proxies: dict = None,
 ) -> RunResult:
     properties = dict(project.properties)
     if extra_properties:
@@ -116,7 +118,7 @@ def run_project(
                             error_message="Type de test step non supporte" if not step.disabled else "Step desactive",
                         )
                     else:
-                        step_result = _run_step(step, properties, timeout, verify_ssl)
+                        step_result = _run_step(step, properties, timeout, verify_ssl, proxies)
 
                     case_result.step_results.append(step_result)
                     if on_step_done:
