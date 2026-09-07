@@ -86,7 +86,11 @@ def run_project(
     cancel_event=None,
     extra_properties: dict = None,
     proxies: dict = None,
+    selected_coords: set = None,
 ) -> RunResult:
+    """selected_coords, si fourni, restreint l'execution aux (si, ci, sti)
+    donnes : les suites/cas ne contenant aucun de ces steps sont omis du
+    resultat (utilise pour rejouer un seul test step ou test case)."""
     properties = dict(project.properties)
     if extra_properties:
         properties.update(extra_properties)
@@ -98,12 +102,21 @@ def run_project(
 
     overall_start = time.perf_counter()
 
-    for suite in project.test_suites:
+    for si, suite in enumerate(project.test_suites):
         suite_result = SuiteResult(name=suite.name)
-        for case in suite.test_cases:
+        suite_has_results = False
+        for ci, case in enumerate(suite.test_cases):
+            if selected_coords is not None and not any(
+                (si, ci, sti) in selected_coords for sti in range(len(case.test_steps))
+            ):
+                continue
+
             case_result = CaseResult(name=case.name, status="SKIPPED" if case.disabled else "PASS")
             if not case.disabled:
-                for step in case.test_steps:
+                for sti, step in enumerate(case.test_steps):
+                    if selected_coords is not None and (si, ci, sti) not in selected_coords:
+                        continue
+
                     if cancel_event is not None and cancel_event.is_set():
                         break
 
@@ -135,7 +148,10 @@ def run_project(
                 case_result.status = "PASS"
 
             suite_result.case_results.append(case_result)
-        run_result.suite_results.append(suite_result)
+            suite_has_results = True
+
+        if selected_coords is None or suite_has_results:
+            run_result.suite_results.append(suite_result)
 
     run_result.duration_s = time.perf_counter() - overall_start
     return run_result

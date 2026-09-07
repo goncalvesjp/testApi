@@ -117,7 +117,7 @@ class RunWorker(QObject):
     finished = pyqtSignal(object)
     failed = pyqtSignal(str)
 
-    def __init__(self, project, timeout, verify_ssl, extra_properties, cancel_event, proxies=None):
+    def __init__(self, project, timeout, verify_ssl, extra_properties, cancel_event, proxies=None, selected_coords=None):
         super().__init__()
         self.project = project
         self.timeout = timeout
@@ -125,6 +125,7 @@ class RunWorker(QObject):
         self.extra_properties = extra_properties
         self.cancel_event = cancel_event
         self.proxies = proxies
+        self.selected_coords = selected_coords
 
     def run(self):
         try:
@@ -137,6 +138,7 @@ class RunWorker(QObject):
                 cancel_event=self.cancel_event,
                 extra_properties=self.extra_properties,
                 proxies=self.proxies,
+                selected_coords=self.selected_coords,
             )
             self.finished.emit(result)
         except Exception as exc:  # garde-fou
@@ -174,6 +176,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._case_items = {}
         self._step_items = {}
         self._runnable_coords = []
+        self._run_coords = []
         self._step_results = {}
         self._progress_index = 0
 
@@ -310,12 +313,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         menu = QMenu(self)
         if len(coords) == 3:
+            run_action = menu.addAction("▶ Lancer ce test step")
             duplicate_action = menu.addAction("Dupliquer ce test step")
         else:
+            run_action = menu.addAction("▶ Lancer ce test case")
             duplicate_action = menu.addAction("Dupliquer ce test case")
 
         chosen = menu.exec(self.tree.viewport().mapToGlobal(pos))
-        if chosen is duplicate_action:
+        if chosen is run_action:
+            self._run_selected(coords)
+        elif chosen is duplicate_action:
             if len(coords) == 3:
                 self._duplicate_step(coords)
             else:
@@ -363,17 +370,40 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not self.project or not self._runnable_coords:
             QMessageBox.information(self, "Rien a executer", "Aucun test step executable dans ce projet.")
             return
+        self._start_run(list(self._runnable_coords), full_run=True)
 
+    def _run_selected(self, coords):
+        if not self.project:
+            return
+        if len(coords) == 3:
+            run_coords = [coords] if coords in self._runnable_coords else []
+        else:
+            si, ci = coords
+            run_coords = [c for c in self._runnable_coords if c[0] == si and c[1] == ci]
+
+        if not run_coords:
+            QMessageBox.information(
+                self,
+                "Rien a executer",
+                "Ce test est desactive ou d'un type non supporte : impossible de le lancer seul.",
+            )
+            return
+        self._start_run(run_coords, full_run=False)
+
+    def _start_run(self, run_coords, full_run):
         self._step_results = {}
         self._progress_index = 0
-        self.progress_bar.setRange(0, len(self._runnable_coords))
+        self._run_coords = run_coords
+        self.progress_bar.setRange(0, len(run_coords))
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(True)
         self.run_action.setEnabled(False)
         self.stop_action.setEnabled(True)
         self.export_action.setEnabled(False)
         self.edit_tab.setEnabled(False)
-        self.status_bar.showMessage("Execution en cours…")
+        self.status_bar.showMessage(
+            "Execution en cours…" if full_run else f"Execution de {len(run_coords)} step(s) selectionne(s)…"
+        )
 
         for item in self._suite_items.values():
             item.setText(1, "")
@@ -393,6 +423,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             extra_properties=self.property_overrides,
             cancel_event=self.cancel_event,
             proxies=_proxies_from_text(self.proxy_edit.text()),
+            selected_coords=None if full_run else set(run_coords),
         )
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
@@ -411,8 +442,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.status_bar.showMessage("Arret demande…")
 
     def _current_coords(self):
-        if 0 <= self._progress_index < len(self._runnable_coords):
-            return self._runnable_coords[self._progress_index]
+        if 0 <= self._progress_index < len(self._run_coords):
+            return self._run_coords[self._progress_index]
         return None
 
     def _on_step_started(self, suite_name, case_name, step_name):
