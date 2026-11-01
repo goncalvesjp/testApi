@@ -213,3 +213,7 @@ supportée.
   pour l'instant) ; le `Makefile` conserve la cible `make ui` par cohérence
   avec le squelette de projet générique, mais elle est inerte tant qu'aucun
   `ui/*.ui` n'existe.
+
+## Licence
+
+[BSD 3-Clause](LICENSE).
