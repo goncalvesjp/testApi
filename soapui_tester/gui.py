@@ -1,10 +1,11 @@
 """IHM PyQt6 : charger un projet SoapUI, lancer les tests, consulter le
 rapport (requete/reponse/assertions avec attendu vs recu) et exporter en HTML."""
+import os
 import sys
 import threading
 
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -287,6 +288,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # ---------- UI ----------
     def _build_ui(self):
         self.setupUi(self)
+        self.setWindowIcon(QIcon(_app_icon_path()))
 
         # Widgets non representables proprement dans le .ui : inseres dans la
         # toolbar par code, comme avant la migration vers Designer. Le .ui
@@ -835,8 +837,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.status_bar.showMessage(f"Rapport exporte : {path}")
 
 
+def _app_icon_path() -> str:
+    base = getattr(sys, "_MEIPASS", None) or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, "assets", "icon.png")
+
+
 def main():
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(_app_icon_path()))
     window = MainWindow()
     window.show()
     return app.exec()
