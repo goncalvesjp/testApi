@@ -332,6 +332,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.props_action.triggered.connect(self.edit_properties)
         self.save_action.triggered.connect(self.save_project)
         self.export_action.triggered.connect(self.export_report)
+        self.about_action.triggered.connect(self.show_about)
 
         self.tree.currentItemChanged.connect(self._on_selection_changed)
         self.tree.customContextMenuRequested.connect(self._show_tree_context_menu)
@@ -465,6 +466,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog = PropertiesDialog(merged, self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.property_overrides = dialog.get_properties()
+
+    # ---------- A propos ----------
+    def show_about(self):
+        version = _app_version()
+        version_line = f"<p>Version {version}</p>" if version else ""
+        box = QMessageBox(self)
+        box.setWindowTitle("À propos")
+        box.setIconPixmap(QIcon(_app_icon_path()).pixmap(64, 64))
+        box.setText(
+            "<h3>Testeur de projets SoapUI</h3>"
+            f"{version_line}"
+            "<p>Charge un projet SoapUI, execute ses requetes REST/SOAP contre "
+            "l'API reelle et evalue ses assertions (statut HTTP, contenu, "
+            "XPath, JsonPath, SLA...).</p>"
+            "<p>Licence BSD 3-Clause.<br>© 2026 Jean-Pierre Gonçalves.</p>"
+        )
+        box.exec()
 
     # ---------- Execution ----------
     def run_tests(self):
@@ -837,9 +855,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.status_bar.showMessage(f"Rapport exporte : {path}")
 
 
+def _project_root() -> str:
+    return getattr(sys, "_MEIPASS", None) or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def _app_icon_path() -> str:
-    base = getattr(sys, "_MEIPASS", None) or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, "assets", "icon.png")
+    return os.path.join(_project_root(), "assets", "icon.png")
+
+
+def _app_version() -> str:
+    try:
+        with open(os.path.join(_project_root(), "VERSION"), encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
 
 
 def main():

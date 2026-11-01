@@ -331,6 +331,8 @@
    <addaction name="export_action"/>
    <addaction name="separator"/>
    <addaction name="insecure_action"/>
+   <addaction name="separator"/>
+   <addaction name="about_action"/>
   </widget>
   <action name="open_action">
    <property name="text">
@@ -380,6 +382,11 @@
    </property>
    <property name="text">
     <string>Ignorer erreurs SSL</string>
+   </property>
+  </action>
+  <action name="about_action">
+   <property name="text">
+    <string>À propos…</string>
    </property>
   </action>
  </widget>

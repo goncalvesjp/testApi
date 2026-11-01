@@ -18,7 +18,10 @@ a = Analysis(
     [os.path.join(PROJECT_ROOT, 'main.py')],
     pathex=[PROJECT_ROOT],
     binaries=[],
-    datas=[(os.path.join(PROJECT_ROOT, 'assets', 'icon.png'), 'assets')],
+    datas=[
+        (os.path.join(PROJECT_ROOT, 'assets', 'icon.png'), 'assets'),
+        (os.path.join(PROJECT_ROOT, 'VERSION'), '.'),
+    ],
     hiddenimports=HIDDEN_IMPORTS,
     hookspath=[],
     hooksconfig={},
