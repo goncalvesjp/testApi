@@ -1,0 +1,9 @@
+{
+  "property_history": {
+    "BaseUrl": [
+      "https://httpbin.org",
+      "https://staging.example.com",
+      "https://dev.example.com"
+    ]
+  }
+}

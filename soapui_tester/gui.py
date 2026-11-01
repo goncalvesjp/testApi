@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMessageBox,
     QProgressBar,
+    QPushButton,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -26,7 +27,7 @@ from PyQt6.QtWidgets import (
 from gui.ui_main_window import Ui_MainWindow
 from gui.ui_properties_dialog import Ui_PropertiesDialog
 
-from . import serializer
+from . import serializer, settings
 from .models import Assertion
 from .parser import parse_project
 from .report import save_html_report
@@ -81,32 +82,92 @@ def _read_kv_table(table: QTableWidget) -> dict:
     return result
 
 
-def _add_property_row(table: QTableWidget, known_names: list, key: str = "", value: str = ""):
-    row = table.rowCount()
-    table.insertRow(row)
+def _row_of_widget(table: QTableWidget, widget) -> int:
+    for row in range(table.rowCount()):
+        if table.cellWidget(row, 0) is widget:
+            return row
+    return -1
+
+
+def _set_value_cell(table: QTableWidget, row: int, key: str, value: str, property_history: dict):
+    table.removeCellWidget(row, 1)
     combo = QComboBox()
     combo.setEditable(True)
-    combo.addItems(known_names)
-    combo.setCurrentText(key)
-    table.setCellWidget(row, 0, combo)
-    table.setItem(row, 1, QTableWidgetItem(value))
+    items = list(property_history.get(key, []))
+    if value and value not in items:
+        items.insert(0, value)
+    combo.addItems(items)
+    combo.setCurrentText(value)
+    table.setCellWidget(row, 1, combo)
 
 
-def _fill_property_table(table: QTableWidget, data: dict):
+def _sync_value_cell(table: QTableWidget, name_combo: QComboBox, property_history: dict):
+    row = _row_of_widget(table, name_combo)
+    if row < 0:
+        return
+    value_widget = table.cellWidget(row, 1)
+    current_value = value_widget.currentText() if value_widget else ""
+    _set_value_cell(table, row, name_combo.currentText(), current_value, property_history)
+
+
+def _remember_current_value(table: QTableWidget, name_combo: QComboBox, property_history: dict):
+    row = _row_of_widget(table, name_combo)
+    if row < 0:
+        return
+    value_combo = table.cellWidget(row, 1)
+    key = name_combo.currentText().strip()
+    value = value_combo.currentText().strip() if value_combo else ""
+    if not key or not value:
+        return
+    if value_combo.findText(value) < 0:
+        value_combo.insertItem(0, value)
+        value_combo.setCurrentText(value)
+    history = property_history.setdefault(key, [])
+    if value in history:
+        history.remove(value)
+    history.insert(0, value)
+    settings.remember_property_value(key, value)
+
+
+def _add_property_row(
+    table: QTableWidget, known_names: list, property_history: dict, key: str = "", value: str = ""
+):
+    row = table.rowCount()
+    table.insertRow(row)
+    name_combo = QComboBox()
+    name_combo.setEditable(True)
+    name_combo.addItems(known_names)
+    name_combo.setCurrentText(key)
+    table.setCellWidget(row, 0, name_combo)
+    _set_value_cell(table, row, key, value, property_history)
+    name_combo.currentTextChanged.connect(
+        lambda _text, t=table, c=name_combo, ph=property_history: _sync_value_cell(t, c, ph)
+    )
+    add_value_btn = QPushButton("+")
+    add_value_btn.setToolTip("Ajouter la valeur courante a la liste de choix de cette propriete")
+    add_value_btn.setMaximumWidth(28)
+    add_value_btn.clicked.connect(
+        lambda _checked=False, t=table, c=name_combo, ph=property_history: _remember_current_value(t, c, ph)
+    )
+    table.setCellWidget(row, 2, add_value_btn)
+
+
+def _fill_property_table(table: QTableWidget, data: dict, property_history: dict):
     table.setRowCount(0)
     known_names = sorted(data.keys())
     for key, value in data.items():
-        _add_property_row(table, known_names, key, value)
+        _add_property_row(table, known_names, property_history, key, value)
 
 
 def _read_property_table(table: QTableWidget) -> dict:
     result = {}
     for row in range(table.rowCount()):
-        combo = table.cellWidget(row, 0)
-        value_item = table.item(row, 1)
-        key = combo.currentText().strip() if combo else ""
-        if key:
-            result[key] = value_item.text() if value_item else ""
+        name_widget = table.cellWidget(row, 0)
+        key = name_widget.currentText().strip() if name_widget else ""
+        if not key:
+            continue
+        value_widget = table.cellWidget(row, 1)
+        result[key] = value_widget.currentText() if value_widget else ""
     return result
 
 
@@ -180,16 +241,23 @@ class PropertiesDialog(QDialog, Ui_PropertiesDialog):
         super().__init__(parent)
         self.setupUi(self)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self._known_names = sorted(properties.keys())
-        _fill_property_table(self.table, properties)
+        self._property_history = settings.load_property_history()
+        _fill_property_table(self.table, properties, self._property_history)
 
-        self.add_btn.clicked.connect(lambda: _add_property_row(self.table, self._known_names))
+        self.add_btn.clicked.connect(
+            lambda: _add_property_row(self.table, self._known_names, self._property_history)
+        )
         self.del_btn.clicked.connect(lambda: _remove_selected_rows(self.table))
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
     def get_properties(self) -> dict:
-        return _read_property_table(self.table)
+        properties = _read_property_table(self.table)
+        for key, value in properties.items():
+            settings.remember_property_value(key, value)
+        return properties
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):

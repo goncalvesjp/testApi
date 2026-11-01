@@ -35,7 +35,13 @@ make run
 1. **Ouvrir un projet SoapUI…** — sélectionner un fichier `.xml`
 2. **Propriétés du projet…** (optionnel) — surcharger `${BaseUrl}` ou toute
    autre propriété du projet sans toucher au XML (utile pour basculer
-   staging/prod)
+   staging/prod). Chaque propriété propose une liste déroulante des valeurs
+   déjà utilisées (historique persisté dans `~/.soapui_tester/settings.json`,
+   indépendant du projet) : taper une nouvelle valeur puis cliquer le bouton
+   **+** en bout de ligne l'ajoute à la liste immédiatement (sans attendre le
+   OK du dialogue). Voir [sample/settings-example.json](sample/settings-example.json)
+   pour un exemple pré-rempli avec 3 valeurs de `BaseUrl` (prod/staging/dev) à
+   copier vers `~/.soapui_tester/settings.json` pour essayer tout de suite
 3. **▶ Lancer les tests** — exécution dans un thread séparé, l'arbre se
    colore en direct (vert = PASS, rouge = FAIL, violet = ERROR, gris =
    SKIPPED)
