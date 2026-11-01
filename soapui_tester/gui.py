@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QApplication,
+    QComboBox,
     QDialog,
     QFileDialog,
     QHeaderView,
@@ -75,6 +76,35 @@ def _read_kv_table(table: QTableWidget) -> dict:
         key_item = table.item(row, 0)
         value_item = table.item(row, 1)
         key = key_item.text().strip() if key_item else ""
+        if key:
+            result[key] = value_item.text() if value_item else ""
+    return result
+
+
+def _add_property_row(table: QTableWidget, known_names: list, key: str = "", value: str = ""):
+    row = table.rowCount()
+    table.insertRow(row)
+    combo = QComboBox()
+    combo.setEditable(True)
+    combo.addItems(known_names)
+    combo.setCurrentText(key)
+    table.setCellWidget(row, 0, combo)
+    table.setItem(row, 1, QTableWidgetItem(value))
+
+
+def _fill_property_table(table: QTableWidget, data: dict):
+    table.setRowCount(0)
+    known_names = sorted(data.keys())
+    for key, value in data.items():
+        _add_property_row(table, known_names, key, value)
+
+
+def _read_property_table(table: QTableWidget) -> dict:
+    result = {}
+    for row in range(table.rowCount()):
+        combo = table.cellWidget(row, 0)
+        value_item = table.item(row, 1)
+        key = combo.currentText().strip() if combo else ""
         if key:
             result[key] = value_item.text() if value_item else ""
     return result
@@ -150,15 +180,16 @@ class PropertiesDialog(QDialog, Ui_PropertiesDialog):
         super().__init__(parent)
         self.setupUi(self)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        _fill_kv_table(self.table, properties)
+        self._known_names = sorted(properties.keys())
+        _fill_property_table(self.table, properties)
 
-        self.add_btn.clicked.connect(lambda: _add_kv_row(self.table))
+        self.add_btn.clicked.connect(lambda: _add_property_row(self.table, self._known_names))
         self.del_btn.clicked.connect(lambda: _remove_selected_rows(self.table))
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
     def get_properties(self) -> dict:
-        return _read_kv_table(self.table)
+        return _read_property_table(self.table)
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
