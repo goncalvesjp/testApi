@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Parseur de fichiers de projet SoapUI (soapui-project.xml) vers les modeles internes.
 
 Le parsing ignore volontairement les prefixes de namespace (con:, xsi:, ...) et

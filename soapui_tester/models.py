@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Modeles de donnees representant un projet SoapUI charge en memoire."""
 from dataclasses import dataclass, field
 from typing import Optional

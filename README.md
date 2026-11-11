@@ -216,4 +216,6 @@ supportée.
 
 ## Licence
 
-[BSD 3-Clause](LICENSE).
+© 2026 Jean-Pierre Gonçalves. Ce programme est un logiciel libre, distribué
+sous licence [GNU GPL v3 ou ultérieure](LICENSE) (`GPL-3.0-or-later`). Il
+utilise PyQt6, lui-même sous GPL v3.

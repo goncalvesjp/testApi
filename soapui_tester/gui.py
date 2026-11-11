@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """IHM PyQt6 : charger un projet SoapUI, lancer les tests, consulter le
 rapport (requete/reponse/assertions avec attendu vs recu) et exporter en HTML."""
 import os
@@ -480,7 +481,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             "<p>Charge un projet SoapUI, execute ses requetes REST/SOAP contre "
             "l'API reelle et evalue ses assertions (statut HTTP, contenu, "
             "XPath, JsonPath, SLA...).</p>"
-            "<p>Licence BSD 3-Clause.<br>© 2026 Jean-Pierre Gonçalves.</p>"
+            "<p>© 2026 Jean-Pierre Gonçalves<br>Licence GNU GPL v3 ou ultérieure.</p>"
         )
         box.exec()
 

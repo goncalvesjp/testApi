@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Modeles de resultats produits par l'execution d'un projet."""
 from dataclasses import dataclass, field
 from typing import Optional

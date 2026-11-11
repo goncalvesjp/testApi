@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Ecriture des modifications d'un Project (models.py) vers son fichier
 soapui-project.xml source.
 

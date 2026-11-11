@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Preferences utilisateur persistees sur disque, independantes du projet
 SoapUI charge (ex : historique des valeurs deja utilisees pour chaque
 propriete de projet, pour pouvoir re-selectionner par ex. plusieurs

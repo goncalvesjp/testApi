@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Execution des tests d'un projet SoapUI parse et generation des resultats."""
 import datetime
 import time

@@ -21,6 +21,7 @@ a = Analysis(
     datas=[
         (os.path.join(PROJECT_ROOT, 'assets', 'icon.png'), 'assets'),
         (os.path.join(PROJECT_ROOT, 'VERSION'), '.'),
+        (os.path.join(PROJECT_ROOT, 'LICENSE'), '.'),
     ],
     hiddenimports=HIDDEN_IMPORTS,
     hookspath=[],

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Point d'entree : lance l'IHM PyQt (sans argument) ou execute un projet
 SoapUI en mode ligne de commande (avec un chemin de fichier)."""
 import argparse

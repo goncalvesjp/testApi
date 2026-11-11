@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Generation du rapport HTML (et resume texte) a partir d'un RunResult."""
 import html
 

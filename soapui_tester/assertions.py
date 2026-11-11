@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Evaluateurs d'assertions SoapUI.
 
 Chaque evaluateur recoit l'assertion parsee, la reponse HTTP (objet
